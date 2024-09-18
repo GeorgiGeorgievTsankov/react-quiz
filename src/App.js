@@ -2,14 +2,19 @@ import { useEffect, useReducer } from "react";
 import Header from "./Header";
 import Main from "./Main";
 import Loader from "./Loader";
-import Error from "./Error"
+import Error from "./Error";
 import StartScreen from "./StartScreen";
-
+import Questions from "./Questions";
+import Progress from "./Progress";
+import NextButton from "./NextButton";
 
 const initialState = {
   questions: [],
   //'loading', 'error', 'ready', 'active', 'finished'
   status: "loading",
+  index: 0,
+  answer: null,
+  points: 0,
 };
 
 function reducer(state, action) {
@@ -22,37 +27,77 @@ function reducer(state, action) {
       };
     case "dataFailed":
       return {
-        ...state, status: "error",
+        ...state,
+        status: "error",
+      };
+    case "startScreen":
+      return {
+        ...state,
+        status: "active",
+      };
+    case "newAnswer":
+      const question = state.questions.at(state.index);
 
-      }
+      return {
+        ...state,
+        answer: action.payload,
+        points:
+          action.payload === question.correctOption
+            ? state.points + question.points
+            : state.points,
+      };
+
+    case "nextQuestion":
+      return {
+        ...state,
+        index: state.index + 1,
+        answer: null,
+      };
 
     default:
-      throw new Error("Action unknown")
+      throw new Error("Action unknown");
   }
 }
 
 function App() {
   // const [state, dispatch] = useReducer(reducer, initialState);
-  const [{ questions, status }, dispatch] = useReducer(reducer, initialState); // Tova e destrukturirano gornoto "state" => "{ question, status}"
-  
+  const [{ questions, status, index, answer }, dispatch] = useReducer(
+    reducer,
+    initialState
+  ); // Tova e destrukturirano gornoto "state" => "{ question, status}"
+
   const numQuestions = questions.length;
 
   useEffect(function () {
     fetch("http://localhost:9000/questions")
       .then((res) => res.json())
       .then((data) => dispatch({ type: "dataReceived", payload: data }))
-      .catch((err) => dispatch({ type: "dataFailed"}));
+      .catch((err) => dispatch({ type: "dataFailed" }));
   }, []);
 
   //  console.log(state);
-   
+
   return (
     <div className="App">
       <Header />
       <Main>
         {status === "loading" && <Loader />}
         {status === "error" && <Error />}
-        {status === "ready" && <StartScreen numQuestions={ numQuestions} />}
+        {status === "ready" && (
+          <StartScreen numQuestions={numQuestions} dispatch={dispatch} />
+        )}
+        {status === "active" && (
+          <>
+            <Progress />
+            <Questions
+              question={questions[index]}
+              dispatch={dispatch}
+              answer={answer}
+            />
+             <NextButton dispatch={dispatch} answer={answer} />
+          </>
+         
+        )}
       </Main>
     </div>
   );
